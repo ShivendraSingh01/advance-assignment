@@ -1,5 +1,5 @@
 pipeline{
-     agent { label 'ec2-agent' }
+     agent any
     stages{
         stage('Build'){
             steps{
