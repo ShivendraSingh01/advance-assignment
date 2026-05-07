@@ -93,6 +93,11 @@ sudo systemctl restart jenkins
 - SonarQube token: configure it in your Jenkins SonarQube installation if you
   decide to use SonarQube.
 
+For SonarCloud, set:
+
+- `SONAR_PROJECT_KEY`: your SonarCloud project key, for example `churn-app`.
+- `SONAR_ORGANIZATION`: your SonarCloud organization key.
+
 ## Local checks
 
 Run these before pushing:

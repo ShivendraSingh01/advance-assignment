@@ -22,6 +22,7 @@ pipeline {
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
         string(name: 'DOCKER_IMAGE', defaultValue: 'yourdockerhub/churn-app', description: 'Docker image repository')
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'churn-app', description: 'SonarQube project key')
+        string(name: 'SONAR_ORGANIZATION', defaultValue: 'shivendrasingh01', description: 'SonarCloud organization key')
     }
 
     environment {
@@ -154,7 +155,7 @@ pipeline {
                 expression { params.RUN_SONAR }
             }
             steps {
-                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY}'
+                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.organization=${SONAR_ORGANIZATION}'
             }
         }
 
