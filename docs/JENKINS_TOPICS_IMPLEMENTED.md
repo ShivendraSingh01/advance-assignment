@@ -16,7 +16,7 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | Unit, regression, and parallel tests | `Parallel Validation` stage and `pytest` |
 | JUnit and coverage publishing | `reports/junit/pytest.xml`, `reports/coverage.xml`, and a 35% coverage gate |
 | SonarQube quality gate setup | `sonar-project.properties` and optional Jenkins stage |
-| Secret/security scans | Optional Gitleaks, pip-audit, Trivy, and ZAP stages |
+| Secret/security scans | Optional pip-audit plus Docker-based Gitleaks, Trivy, and ZAP stages |
 | Artifact lifecycle | Jenkins archives reports and model files |
 | Deployment strategies | Rolling, blue-green placeholder, canary placeholder in deploy script |
 | Rollback | Jenkins `post failure` rollback with `kubectl rollout undo` |

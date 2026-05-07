@@ -16,8 +16,8 @@ pipeline {
         choice(name: 'DEPLOY_STRATEGY', choices: ['rolling', 'blue-green', 'canary'], description: 'Deployment style')
         booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Deploy after build')
         booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube scan')
-        booleanParam(name: 'RUN_SECURITY_SCANS', defaultValue: false, description: 'Run Gitleaks, pip-audit, and Trivy')
-        booleanParam(name: 'RUN_DAST', defaultValue: false, description: 'Run OWASP ZAP baseline scan after deployment')
+        booleanParam(name: 'RUN_SECURITY_SCANS', defaultValue: false, description: 'Run pip-audit, Docker-based Gitleaks, and Docker-based Trivy')
+        booleanParam(name: 'RUN_DAST', defaultValue: false, description: 'Run Docker-based OWASP ZAP baseline scan after deployment')
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
         string(name: 'DOCKER_IMAGE', defaultValue: 'yourdockerhub/churn-app', description: 'Docker image repository')
@@ -127,11 +127,10 @@ pipeline {
                     }
                     steps {
                         sh '''
-                            if command -v gitleaks >/dev/null 2>&1; then
-                                gitleaks detect --source . --redact --report-format json --report-path reports/gitleaks.json
-                            else
-                                echo "gitleaks not installed. Skipping secret scan."
-                            fi
+                            docker run --rm \
+                                -v "$PWD:/repo" \
+                                zricethezav/gitleaks:latest \
+                                detect --source /repo --redact --report-format json --report-path /repo/reports/gitleaks.json
                         '''
                     }
                 }
@@ -171,11 +170,11 @@ pipeline {
             }
             steps {
                 sh '''
-                    if command -v trivy >/dev/null 2>&1; then
-                        trivy image --format table --output reports/trivy-image.txt ${IMAGE_NAME}
-                    else
-                        echo "trivy not installed. Skipping container image scan."
-                    fi
+                    docker run --rm \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        -v "$PWD/reports:/reports" \
+                        aquasec/trivy:latest \
+                        image --format table --output /reports/trivy-image.txt ${IMAGE_NAME}
                 '''
             }
         }
@@ -226,11 +225,10 @@ pipeline {
             }
             steps {
                 sh '''
-                    if command -v zap-baseline.py >/dev/null 2>&1; then
-                        zap-baseline.py -t http://churn-app-${ENVIRONMENT}.example.com -r reports/zap-baseline.html
-                    else
-                        echo "OWASP ZAP baseline is not installed. Skipping DAST scan."
-                    fi
+                    docker run --rm \
+                        -v "$PWD/reports:/zap/wrk/:rw" \
+                        ghcr.io/zaproxy/zaproxy:stable \
+                        zap-baseline.py -t http://churn-app-${ENVIRONMENT}.example.com -r zap-baseline.html
                 '''
             }
         }

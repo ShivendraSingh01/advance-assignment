@@ -55,20 +55,8 @@ if [ -n "$missing_tools" ]; then
   exit 1
 fi
 
-if ! has_command gitleaks; then
-  add_missing_optional gitleaks "$RUN_SECURITY_SCANS"
-fi
-
-if ! has_command trivy; then
-  add_missing_optional trivy "$RUN_SECURITY_SCANS"
-fi
-
 if ! has_command sonar-scanner; then
   add_missing_optional sonar-scanner "$RUN_SONAR"
-fi
-
-if ! has_command zap-baseline.py; then
-  add_missing_optional zap-baseline.py "$RUN_DAST"
 fi
 
 if ! has_command terraform; then
@@ -102,10 +90,7 @@ if [ -n "$missing_enabled_optional" ]; then
   echo "Missing optional tools required by enabled Jenkins parameters:${missing_enabled_optional}"
   echo ""
   echo "Install only the tools you enabled:"
-  echo "- gitleaks: secret scanning when RUN_SECURITY_SCANS=true"
-  echo "- trivy: container image scanning when RUN_SECURITY_SCANS=true"
   echo "- sonar-scanner: SonarQube scan when RUN_SONAR=true"
-  echo "- zap-baseline.py: OWASP ZAP DAST when RUN_DAST=true"
   echo "- terraform: Terraform plan when RUN_TERRAFORM_PLAN=true"
   echo "- kubectl: deployment and rollback when DEPLOY=true"
   exit 1

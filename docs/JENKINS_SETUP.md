@@ -36,12 +36,12 @@ If the workspace already has the wrong remote cached, run **Wipe out current
 workspace** from the Jenkins job page or delete the job workspace once, then
 build again.
 
-## Optional tools to install later
+## Optional integrations
 
 - SonarQube scanner: enable with `RUN_SONAR=true`.
-- Gitleaks: required when `RUN_SECURITY_SCANS=true`.
-- Trivy: required when `RUN_SECURITY_SCANS=true`.
-- OWASP ZAP baseline script: required when `RUN_DAST=true`.
+- Gitleaks: runs through Docker when `RUN_SECURITY_SCANS=true`.
+- Trivy: runs through Docker when `RUN_SECURITY_SCANS=true`.
+- OWASP ZAP baseline: runs through Docker when `RUN_DAST=true`.
 - Terraform CLI: required when `RUN_TERRAFORM_PLAN=true`.
 - kubectl: required when `DEPLOY=true`.
 
@@ -57,14 +57,19 @@ running the build:
 - Docker
 - `curl`
 
-It also checks optional tools and only fails when the matching Jenkins parameter
-is enabled:
+It also checks optional installed tools and only fails when the matching Jenkins
+parameter is enabled:
 
-- `gitleaks` and `trivy` when `RUN_SECURITY_SCANS=true`
 - `sonar-scanner` when `RUN_SONAR=true`
-- `zap-baseline.py` when `RUN_DAST=true`
 - `terraform` when `RUN_TERRAFORM_PLAN=true`
 - `kubectl` when `DEPLOY=true`
+
+Gitleaks, Trivy, and OWASP ZAP are not installed on the Jenkins server. They run
+as Docker containers:
+
+- `zricethezav/gitleaks:latest`
+- `aquasec/trivy:latest`
+- `ghcr.io/zaproxy/zaproxy:stable`
 
 Manual install command for Ubuntu/Debian:
 
