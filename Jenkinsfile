@@ -52,11 +52,28 @@ pipeline {
             }
         }
 
+        stage('Resolve Python') {
+            steps {
+                script {
+                    env.PYTHON_BIN = sh(
+                        script: 'command -v python3 || command -v python || true',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!env.PYTHON_BIN) {
+                        error 'Python was not found. Install python3 and python3-pip on the Jenkins agent.'
+                    }
+
+                    echo "Using Python: ${env.PYTHON_BIN}"
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
                 sh 'mkdir -p reports/junit'
-                sh 'python -m pip install --upgrade pip'
-                sh 'python -m pip install -r requirements-ci.txt'
+                sh '"${PYTHON_BIN}" -m pip install --upgrade pip'
+                sh '"${PYTHON_BIN}" -m pip install -r requirements-ci.txt'
             }
         }
 
@@ -64,7 +81,7 @@ pipeline {
             parallel {
                 stage('Unit and Regression Tests') {
                     steps {
-                        sh 'pytest tests --junitxml=reports/junit/pytest.xml --cov=app --cov=model --cov-report=xml:reports/coverage.xml --cov-report=term-missing --cov-fail-under=60'
+                        sh '"${PYTHON_BIN}" -m pytest tests --junitxml=reports/junit/pytest.xml --cov=app --cov=model --cov-report=xml:reports/coverage.xml --cov-report=term-missing --cov-fail-under=60'
                     }
                     post {
                         always {
@@ -75,7 +92,7 @@ pipeline {
 
                 stage('Lint') {
                     steps {
-                        sh 'flake8 app model tests --output-file=reports/flake8.txt --tee'
+                        sh '"${PYTHON_BIN}" -m flake8 app model tests --output-file=reports/flake8.txt --tee'
                     }
                 }
 
@@ -84,7 +101,7 @@ pipeline {
                         expression { params.RUN_SECURITY_SCANS }
                     }
                     steps {
-                        sh 'pip-audit -r requirements.txt -f json -o reports/pip-audit.json'
+                        sh '"${PYTHON_BIN}" -m pip_audit -r requirements.txt -f json -o reports/pip-audit.json'
                     }
                 }
 
@@ -101,13 +118,13 @@ pipeline {
 
         stage('Train ML Model') {
             steps {
-                sh 'python model/train.py'
+                sh '"${PYTHON_BIN}" model/train.py'
             }
         }
 
         stage('Evaluate Model') {
             steps {
-                sh 'python model/evaluate.py | tee reports/model-evaluation.txt'
+                sh '"${PYTHON_BIN}" model/evaluate.py | tee reports/model-evaluation.txt'
             }
         }
 

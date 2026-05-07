@@ -6,7 +6,7 @@
 2. Add this repository as a Pipeline or Multibranch Pipeline job:
    `https://github.com/ShivendraSingh01/advance-assignment.git`
 3. Use the repo `Jenkinsfile`.
-4. Make sure the Jenkins agent has Python 3.11, pip, Docker, and Git.
+4. Make sure the Jenkins agent has Python 3.11 or `python3`, pip, Docker, and Git.
 5. Run the job once with the default parameters.
 
 ## Recommended Jenkins job type
@@ -57,10 +57,17 @@ build again.
 Run these before pushing:
 
 ```bash
-python -m pip install -r requirements-ci.txt
-python -m pytest tests --cov=app --cov=model --cov-fail-under=60
-python -m flake8 app model tests
+python3 -m pip install -r requirements-ci.txt
+python3 -m pytest tests --cov=app --cov=model --cov-fail-under=60
+python3 -m flake8 app model tests
 docker build -t churn-app:local .
+```
+
+On Ubuntu/Debian Jenkins agents, install Python with:
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv
 ```
 
 To enable the local Git hook:
