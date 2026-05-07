@@ -99,7 +99,22 @@ sudo systemctl restart jenkins
 For SonarCloud, set:
 
 - `SONAR_PROJECT_KEY`: `ShivendraSingh01_advance-assignment`.
-- `sonar.organization`: set in `sonar-project.properties`.
+- `SONAR_ORGANIZATION`: `shivendrasingh01`.
+- `SONAR_TOKEN_CREDENTIAL_ID`: Jenkins Secret text credential ID. Default:
+  `sonarcloud-token`.
+
+To add the token in Jenkins:
+
+1. Open Jenkins.
+2. Go to **Manage Jenkins** > **Credentials**.
+3. Choose the global credentials domain.
+4. Click **Add Credentials**.
+5. Kind: **Secret text**.
+6. Secret: paste your SonarCloud token.
+7. ID: `sonarcloud-token`.
+8. Save.
+
+The pipeline reads that secret only during the Sonar stage.
 
 ## Local checks
 

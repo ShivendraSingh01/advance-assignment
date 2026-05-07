@@ -23,6 +23,7 @@ pipeline {
         string(name: 'DOCKER_IMAGE', defaultValue: 'yourdockerhub/churn-app', description: 'Docker image repository')
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'ShivendraSingh01_advance-assignment', description: 'SonarQube project key')
         string(name: 'SONAR_ORGANIZATION', defaultValue: 'shivendrasingh01', description: 'SonarCloud organization key')
+        string(name: 'SONAR_TOKEN_CREDENTIAL_ID', defaultValue: 'sonarcloud-token', description: 'Jenkins Secret text credential ID for SonarCloud')
     }
 
     environment {
@@ -155,7 +156,14 @@ pipeline {
                 expression { params.RUN_SONAR }
             }
             steps {
-                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY}'
+                withCredentials([string(credentialsId: params.SONAR_TOKEN_CREDENTIAL_ID, variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.organization=${SONAR_ORGANIZATION} \
+                            -Dsonar.token=${SONAR_TOKEN}
+                    '''
+                }
             }
         }
 
