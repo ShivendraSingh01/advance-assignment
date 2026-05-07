@@ -95,8 +95,8 @@ sudo systemctl restart jenkins
 
 For SonarCloud, set:
 
-- `SONAR_PROJECT_KEY`: your SonarCloud project key, for example `churn-app`.
-- `SONAR_ORGANIZATION`: your SonarCloud organization key.
+- `SONAR_PROJECT_KEY`: `ShivendraSingh01_advance-assignment`.
+- `sonar.organization`: set in `sonar-project.properties`.
 
 ## Local checks
 

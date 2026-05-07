@@ -21,7 +21,7 @@ pipeline {
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
         string(name: 'DOCKER_IMAGE', defaultValue: 'yourdockerhub/churn-app', description: 'Docker image repository')
-        string(name: 'SONAR_PROJECT_KEY', defaultValue: 'churn-app', description: 'SonarQube project key')
+        string(name: 'SONAR_PROJECT_KEY', defaultValue: 'ShivendraSingh01_advance-assignment', description: 'SonarQube project key')
         string(name: 'SONAR_ORGANIZATION', defaultValue: 'shivendrasingh01', description: 'SonarCloud organization key')
     }
 
@@ -155,7 +155,7 @@ pipeline {
                 expression { params.RUN_SONAR }
             }
             steps {
-                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.organization=${SONAR_ORGANIZATION}'
+                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY}'
             }
         }
 
