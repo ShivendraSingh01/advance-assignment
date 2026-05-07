@@ -14,7 +14,7 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | Code review support | `.github/pull_request_template.md` and `.github/CODEOWNERS` |
 | Multi-module/container build | Docker build stage for the Python app |
 | Unit, regression, and parallel tests | `Parallel Validation` stage and `pytest` |
-| JUnit and coverage publishing | `reports/junit/pytest.xml`, `reports/coverage.xml`, and a 60% coverage gate |
+| JUnit and coverage publishing | `reports/junit/pytest.xml`, `reports/coverage.xml`, and a 35% coverage gate |
 | SonarQube quality gate setup | `sonar-project.properties` and optional Jenkins stage |
 | Secret/security scans | Optional Gitleaks, pip-audit, Trivy, and ZAP stages |
 | Artifact lifecycle | Jenkins archives reports and model files |

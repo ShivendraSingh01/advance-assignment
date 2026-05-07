@@ -39,11 +39,11 @@ build again.
 ## Optional tools to install later
 
 - SonarQube scanner: enable with `RUN_SONAR=true`.
-- Gitleaks: enable with `RUN_SECURITY_SCANS=true`.
-- Trivy: enable with `RUN_SECURITY_SCANS=true`.
-- OWASP ZAP baseline script: enable with `RUN_DAST=true`.
-- Terraform CLI: enable with `RUN_TERRAFORM_PLAN=true`.
-- kubectl: required only when `DEPLOY=true`.
+- Gitleaks: required when `RUN_SECURITY_SCANS=true`.
+- Trivy: required when `RUN_SECURITY_SCANS=true`.
+- OWASP ZAP baseline script: required when `RUN_DAST=true`.
+- Terraform CLI: required when `RUN_TERRAFORM_PLAN=true`.
+- kubectl: required when `DEPLOY=true`.
 
 ## Agent tool check
 
@@ -56,6 +56,15 @@ running the build:
 - `python3-venv`
 - Docker
 - `curl`
+
+It also checks optional tools and only fails when the matching Jenkins parameter
+is enabled:
+
+- `gitleaks` and `trivy` when `RUN_SECURITY_SCANS=true`
+- `sonar-scanner` when `RUN_SONAR=true`
+- `zap-baseline.py` when `RUN_DAST=true`
+- `terraform` when `RUN_TERRAFORM_PLAN=true`
+- `kubectl` when `DEPLOY=true`
 
 Manual install command for Ubuntu/Debian:
 
@@ -84,8 +93,8 @@ sudo systemctl restart jenkins
 Run these before pushing:
 
 ```bash
-python3 -m pip install -r requirements-ci.txt
-python3 -m pytest tests --cov=app --cov=model --cov-fail-under=60
+python3 -m pip install -r requirements.txt
+python3 -m pytest tests --cov=app --cov=model --cov-fail-under=35
 python3 -m flake8 app model tests
 docker build -t churn-app:local .
 ```

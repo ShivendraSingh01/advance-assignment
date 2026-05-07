@@ -2,3 +2,8 @@ pandas
 scikit-learn
 fastapi
 uvicorn
+flake8
+httpx
+pip-audit
+pytest
+pytest-cov

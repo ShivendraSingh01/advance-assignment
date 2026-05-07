@@ -1,30 +1,49 @@
 #!/usr/bin/env sh
 set -eu
 
+RUN_SECURITY_SCANS="${1:-false}"
+RUN_SONAR="${2:-false}"
+RUN_DAST="${3:-false}"
+RUN_TERRAFORM_PLAN="${4:-false}"
+DEPLOY="${5:-false}"
+
 missing_tools=""
+missing_enabled_optional=""
+missing_disabled_optional=""
 
 has_command() {
   command -v "$1" >/dev/null 2>&1
 }
 
-add_missing() {
+add_missing_required() {
   missing_tools="${missing_tools} $1"
 }
 
+add_missing_optional() {
+  tool_name="$1"
+  enabled="$2"
+
+  if [ "$enabled" = "true" ]; then
+    missing_enabled_optional="${missing_enabled_optional} ${tool_name}"
+  else
+    missing_disabled_optional="${missing_disabled_optional} ${tool_name}"
+  fi
+}
+
 if ! has_command git; then
-  add_missing git
+  add_missing_required git
 fi
 
 if ! has_command python3; then
-  add_missing python3
+  add_missing_required python3
 fi
 
 if ! has_command docker; then
-  add_missing docker
+  add_missing_required docker
 fi
 
 if ! has_command curl; then
-  add_missing curl
+  add_missing_required curl
 fi
 
 if [ -n "$missing_tools" ]; then
@@ -34,6 +53,30 @@ if [ -n "$missing_tools" ]; then
   echo "sudo apt-get update"
   echo "sudo apt-get install -y git python3 python3-pip python3-venv docker.io curl"
   exit 1
+fi
+
+if ! has_command gitleaks; then
+  add_missing_optional gitleaks "$RUN_SECURITY_SCANS"
+fi
+
+if ! has_command trivy; then
+  add_missing_optional trivy "$RUN_SECURITY_SCANS"
+fi
+
+if ! has_command sonar-scanner; then
+  add_missing_optional sonar-scanner "$RUN_SONAR"
+fi
+
+if ! has_command zap-baseline.py; then
+  add_missing_optional zap-baseline.py "$RUN_DAST"
+fi
+
+if ! has_command terraform; then
+  add_missing_optional terraform "$RUN_TERRAFORM_PLAN"
+fi
+
+if ! has_command kubectl; then
+  add_missing_optional kubectl "$DEPLOY"
 fi
 
 if ! python3 -m venv --help >/dev/null 2>&1; then
@@ -51,4 +94,21 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Agent tool check passed: git, python3, venv, docker, and curl are ready."
+if [ -n "$missing_disabled_optional" ]; then
+  echo "Optional tools not installed and currently not required:${missing_disabled_optional}"
+fi
+
+if [ -n "$missing_enabled_optional" ]; then
+  echo "Missing optional tools required by enabled Jenkins parameters:${missing_enabled_optional}"
+  echo ""
+  echo "Install only the tools you enabled:"
+  echo "- gitleaks: secret scanning when RUN_SECURITY_SCANS=true"
+  echo "- trivy: container image scanning when RUN_SECURITY_SCANS=true"
+  echo "- sonar-scanner: SonarQube scan when RUN_SONAR=true"
+  echo "- zap-baseline.py: OWASP ZAP DAST when RUN_DAST=true"
+  echo "- terraform: Terraform plan when RUN_TERRAFORM_PLAN=true"
+  echo "- kubectl: deployment and rollback when DEPLOY=true"
+  exit 1
+fi
+
+echo "Agent tool check passed: required tools are ready."
