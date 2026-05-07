@@ -71,6 +71,9 @@ as Docker containers:
 - `aquasec/trivy:latest`
 - `ghcr.io/zaproxy/zaproxy:stable`
 
+Gitleaks uses `.gitleaks.toml` to ignore generated reports, model pickle files,
+local virtual environments, and the sample CSV dataset.
+
 Manual install command for Ubuntu/Debian:
 
 ```bash

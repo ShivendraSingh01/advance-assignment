@@ -1,0 +1,13 @@
+title = "advance-assignment gitleaks config"
+
+[allowlist]
+description = "Ignore generated files and local CI artifacts."
+paths = [
+  '''^\.git/''',
+  '''^\.venv/''',
+  '''^\.pip-cache/''',
+  '''^\.pip-temp/''',
+  '''^reports/''',
+  '''^model/.*\.pkl$''',
+  '''^data/.*\.csv$'''
+]
