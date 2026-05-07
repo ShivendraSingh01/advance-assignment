@@ -1,7 +1,13 @@
 #!/usr/bin/env sh
 set -eu
 
-BRANCH_NAME="${BRANCH_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
+BRANCH_NAME="${BRANCH_NAME:-${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}}"
+BRANCH_NAME="${BRANCH_NAME#origin/}"
+
+if [ "$BRANCH_NAME" = "HEAD" ]; then
+  echo "Detached HEAD checkout detected. Skipping branch name policy."
+  exit 0
+fi
 
 case "$BRANCH_NAME" in
   main|develop|feature/*|bugfix/*|hotfix/*|release/*|PR-*|CHANGE-*)
