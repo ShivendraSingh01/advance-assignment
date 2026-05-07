@@ -47,19 +47,22 @@ build again.
 
 ## Agent tool check
 
-The Jenkinsfile has an `Agent Tool Check` stage. When `AUTO_INSTALL_TOOLS=true`,
-it tries to install missing required packages on Ubuntu/Debian agents:
+The Jenkinsfile has an `Agent Tool Check` stage. It checks these tools before
+running the build:
 
 - `git`
 - `python3`
 - `python3-pip`
 - `python3-venv`
-- `docker.io`
+- Docker
 - `curl`
 
-The Jenkins user must have passwordless `sudo` for automatic installs. If your
-server does not allow that, install the tools manually and run the build with
-`AUTO_INSTALL_TOOLS=false`.
+Manual install command for Ubuntu/Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git python3 python3-pip python3-venv docker.io curl
+```
 
 Docker also needs daemon access. If Docker is installed but Jenkins cannot use
 it, run:
