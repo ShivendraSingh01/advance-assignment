@@ -20,6 +20,7 @@ pipeline {
         booleanParam(name: 'RUN_DAST', defaultValue: false, description: 'Run OWASP ZAP baseline scan after deployment')
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
+        booleanParam(name: 'AUTO_INSTALL_TOOLS', defaultValue: true, description: 'Install missing required tools on Ubuntu/Debian agents')
         string(name: 'DOCKER_IMAGE', defaultValue: 'yourdockerhub/churn-app', description: 'Docker image repository')
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'churn-app', description: 'SonarQube project key')
     }
@@ -40,6 +41,12 @@ pipeline {
             }
         }
 
+        stage('Agent Tool Check') {
+            steps {
+                sh 'sh scripts/ci/check-agent-tools.sh ${AUTO_INSTALL_TOOLS}'
+            }
+        }
+
         stage('Branch Policy') {
             steps {
                 sh 'sh scripts/ci/check-branch.sh'
@@ -55,15 +62,25 @@ pipeline {
         stage('Resolve Python') {
             steps {
                 script {
-                    env.PYTHON_BIN = sh(
+                    def systemPython = sh(
                         script: 'command -v python3 || command -v python || true',
                         returnStdout: true
                     ).trim()
 
-                    if (!env.PYTHON_BIN) {
+                    if (!systemPython) {
                         error 'Python was not found. Install python3 and python3-pip on the Jenkins agent.'
                     }
 
+                    sh """
+                        "${systemPython}" -m venv .venv || {
+                            echo "Could not create Python virtual environment."
+                            echo "Install python3-venv and python3-pip on the Jenkins agent."
+                            exit 1
+                        }
+                    """
+
+                    env.PYTHON_BIN = '.venv/bin/python'
+                    sh '"${PYTHON_BIN}" -m pip --version'
                     echo "Using Python: ${env.PYTHON_BIN}"
                 }
             }

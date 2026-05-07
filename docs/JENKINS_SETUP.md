@@ -45,6 +45,30 @@ build again.
 - Terraform CLI: enable with `RUN_TERRAFORM_PLAN=true`.
 - kubectl: required only when `DEPLOY=true`.
 
+## Agent tool check
+
+The Jenkinsfile has an `Agent Tool Check` stage. When `AUTO_INSTALL_TOOLS=true`,
+it tries to install missing required packages on Ubuntu/Debian agents:
+
+- `git`
+- `python3`
+- `python3-pip`
+- `python3-venv`
+- `docker.io`
+- `curl`
+
+The Jenkins user must have passwordless `sudo` for automatic installs. If your
+server does not allow that, install the tools manually and run the build with
+`AUTO_INSTALL_TOOLS=false`.
+
+Docker also needs daemon access. If Docker is installed but Jenkins cannot use
+it, run:
+
+```bash
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+```
+
 ## Credentials to create
 
 - `dockerhub-token`: username/password credential used when `PUSH_IMAGE=true`.
@@ -63,12 +87,15 @@ python3 -m flake8 app model tests
 docker build -t churn-app:local .
 ```
 
-On Ubuntu/Debian Jenkins agents, install Python with:
+On Ubuntu/Debian Jenkins agents, install Python, pip, and venv with:
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-pip python3-venv
 ```
+
+This matters because the Jenkinsfile creates a local `.venv` and installs the
+CI dependencies inside it.
 
 To enable the local Git hook:
 
