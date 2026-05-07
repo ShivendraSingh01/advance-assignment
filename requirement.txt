@@ -1,4 +1,1 @@
-pandas
-scikit-learn
-fastapi
-uvicorn
+-r requirements.txt

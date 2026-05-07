@@ -1,0 +1,6 @@
+-r requirements.txt
+flake8
+httpx
+pip-audit
+pytest
+pytest-cov

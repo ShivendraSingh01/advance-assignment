@@ -1,0 +1,79 @@
+# Jenkins Setup
+
+## Minimum setup
+
+1. Install Jenkins with Git, Pipeline, Credentials, and JUnit plugins.
+2. Add this repository as a Pipeline or Multibranch Pipeline job:
+   `https://github.com/ShivendraSingh01/advance-assignment.git`
+3. Use the repo `Jenkinsfile`.
+4. Make sure the Jenkins agent has Python 3.11, pip, Docker, and Git.
+5. Run the job once with the default parameters.
+
+## Recommended Jenkins job type
+
+Use a Multibranch Pipeline job. That gives you pull request and branch builds.
+The Jenkinsfile does not run a second Git checkout; Jenkins handles SCM checkout
+from the job configuration.
+
+Manual builds use the Jenkins build button and parameters. Scheduled builds use
+the cron trigger already present in the Jenkinsfile.
+
+## Git checkout fix
+
+If Jenkins shows `https://github.com/yourrepo/churn-mlops-project.git`, the job
+is still using the old placeholder URL. Open the Jenkins job configuration and
+set the repository URL to:
+
+```text
+https://github.com/ShivendraSingh01/advance-assignment.git
+```
+
+For a public repository, leave credentials as `None`. For a private repository,
+create a GitHub personal access token and save it in Jenkins as a username/token
+credential. GitHub passwords are not supported for Git HTTPS checkout.
+
+If the workspace already has the wrong remote cached, run **Wipe out current
+workspace** from the Jenkins job page or delete the job workspace once, then
+build again.
+
+## Optional tools to install later
+
+- SonarQube scanner: enable with `RUN_SONAR=true`.
+- Gitleaks: enable with `RUN_SECURITY_SCANS=true`.
+- Trivy: enable with `RUN_SECURITY_SCANS=true`.
+- OWASP ZAP baseline script: enable with `RUN_DAST=true`.
+- Terraform CLI: enable with `RUN_TERRAFORM_PLAN=true`.
+- kubectl: required only when `DEPLOY=true`.
+
+## Credentials to create
+
+- `dockerhub-token`: username/password credential used when `PUSH_IMAGE=true`.
+- Kubernetes access: configure kubeconfig on the Jenkins agent for deployments.
+- SonarQube token: configure it in your Jenkins SonarQube installation if you
+  decide to use SonarQube.
+
+## Local checks
+
+Run these before pushing:
+
+```bash
+python -m pip install -r requirements-ci.txt
+python -m pytest tests --cov=app --cov=model --cov-fail-under=60
+python -m flake8 app model tests
+docker build -t churn-app:local .
+```
+
+To enable the local Git hook:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+## Deployment notes
+
+The manifests under `k8s/` are simple examples for `dev`, `qa`, and `prod`.
+The Jenkinsfile asks for approval before `qa` or `prod` deployments.
+
+For a class assignment, rolling deployment is enough. Blue-green and canary are
+included as lightweight placeholders so you can explain the strategy without
+needing a service mesh or advanced traffic routing.

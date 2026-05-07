@@ -1,0 +1,15 @@
+.git
+.githooks
+.github
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+reports
+.pip-cache
+.pip-temp
+.ci-deps
+.docker-config
+.venv
+venv
+docs

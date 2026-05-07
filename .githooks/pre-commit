@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -eu
+
+python -m pytest tests -q
+python -m flake8 app model tests
