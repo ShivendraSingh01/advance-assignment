@@ -1,0 +1,94 @@
+def call(Map config = [:]) {
+    def runSecurityScans = config.runSecurityScans ?: false
+    def runSonar = config.runSonar ?: false
+    def runTerraformPlan = config.runTerraformPlan ?: false
+    def deploy = config.deploy ?: false
+
+    sh """
+        set -eu
+
+        RUN_SECURITY_SCANS="${runSecurityScans}"
+        RUN_SONAR="${runSonar}"
+        RUN_TERRAFORM_PLAN="${runTerraformPlan}"
+        DEPLOY="${deploy}"
+
+        missing_tools=""
+        missing_enabled_optional=""
+        missing_disabled_optional=""
+
+        has_command() {
+          command -v "\$1" >/dev/null 2>&1
+        }
+
+        add_missing_required() {
+          missing_tools="\${missing_tools} \$1"
+        }
+
+        add_missing_optional() {
+          tool_name="\$1"
+          enabled="\$2"
+
+          if [ "\$enabled" = "true" ]; then
+            missing_enabled_optional="\${missing_enabled_optional} \${tool_name}"
+          else
+            missing_disabled_optional="\${missing_disabled_optional} \${tool_name}"
+          fi
+        }
+
+        if ! has_command git; then add_missing_required git; fi
+        if ! has_command python3; then add_missing_required python3; fi
+        if ! has_command docker; then add_missing_required docker; fi
+        if ! has_command curl; then add_missing_required curl; fi
+
+        if [ -n "\$missing_tools" ]; then
+          echo "Missing required tools:\${missing_tools}"
+          echo ""
+          echo "Install them on Ubuntu/Debian with:"
+          echo "sudo apt-get update"
+          echo "sudo apt-get install -y git python3 python3-pip python3-venv docker.io curl"
+          exit 1
+        fi
+
+        if ! has_command sonar-scanner; then
+          add_missing_optional sonar-scanner "\$RUN_SONAR"
+        fi
+
+        if ! has_command terraform; then
+          if [ "\$RUN_TERRAFORM_PLAN" = "true" ] || [ "\$DEPLOY" = "true" ]; then
+            add_missing_optional terraform true
+          else
+            add_missing_optional terraform false
+          fi
+        fi
+
+        if ! python3 -m venv --help >/dev/null 2>&1; then
+          echo "python3 venv support is missing."
+          echo "Install it with:"
+          echo "sudo apt-get install -y python3-venv python3-pip"
+          exit 1
+        fi
+
+        if ! docker info >/dev/null 2>&1; then
+          echo "Docker is installed, but Jenkins cannot access the Docker daemon."
+          echo "Fix it with:"
+          echo "sudo usermod -aG docker jenkins"
+          echo "sudo systemctl restart jenkins"
+          exit 1
+        fi
+
+        if [ -n "\$missing_disabled_optional" ]; then
+          echo "Optional tools not installed and currently not required:\${missing_disabled_optional}"
+        fi
+
+        if [ -n "\$missing_enabled_optional" ]; then
+          echo "Missing optional tools required by enabled Jenkins parameters:\${missing_enabled_optional}"
+          echo ""
+          echo "Install only the tools you enabled:"
+          echo "- sonar-scanner: SonarQube scan when RUN_SONAR=true"
+          echo "- terraform: Terraform plan/apply when RUN_TERRAFORM_PLAN=true or DEPLOY=true"
+          exit 1
+        fi
+
+        echo "Agent tool check passed: required tools are ready."
+    """
+}

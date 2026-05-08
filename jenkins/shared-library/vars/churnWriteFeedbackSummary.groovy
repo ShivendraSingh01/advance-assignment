@@ -1,9 +1,10 @@
-#!/usr/bin/env sh
-set -eu
+def call() {
+    sh '''
+        set -eu
 
-mkdir -p reports
+        mkdir -p reports
 
-cat > reports/feedback-summary.md <<EOF
+        cat > reports/feedback-summary.md <<EOF
 # CI Feedback Summary
 
 - Unit and regression tests: see reports/junit/pytest.xml
@@ -17,4 +18,6 @@ cat > reports/feedback-summary.md <<EOF
 Use this file as the quick feedback loop for a Jenkins build.
 EOF
 
-echo "Wrote reports/feedback-summary.md"
+        echo "Wrote reports/feedback-summary.md"
+    '''
+}

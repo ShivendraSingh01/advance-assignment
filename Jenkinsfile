@@ -55,13 +55,18 @@ pipeline {
 
         stage('Agent Tool Check') {
             steps {
-                churnRunScript('scripts/ci/check-agent-tools.sh', '${RUN_SECURITY_SCANS} ${RUN_SONAR} ${RUN_DAST} ${RUN_TERRAFORM_PLAN} ${DEPLOY}')
+                churnCheckAgentTools(
+                    runSecurityScans: params.RUN_SECURITY_SCANS,
+                    runSonar: params.RUN_SONAR,
+                    runTerraformPlan: params.RUN_TERRAFORM_PLAN,
+                    deploy: params.DEPLOY
+                )
             }
         }
 
         stage('Branch Policy') {
             steps {
-                churnRunScript('scripts/ci/check-branch.sh')
+                churnCheckBranch()
             }
         }
 
@@ -143,8 +148,8 @@ pipeline {
 
         stage('Package Artifact') {
             steps {
-                churnRunScript('scripts/ci/write-feedback-summary.sh')
-                churnRunScript('scripts/ci/package-artifact.sh', '${IMAGE_NAME}')
+                churnWriteFeedbackSummary()
+                churnPackageArtifact(env.IMAGE_NAME)
             }
         }
 
@@ -214,7 +219,7 @@ pipeline {
 
         stage('Promote Artifact Metadata') {
             steps {
-                churnRunScript('scripts/ci/promote-artifact.sh', '${ENVIRONMENT} ${IMAGE_NAME}')
+                churnPromoteArtifact(params.ENVIRONMENT, env.IMAGE_NAME)
             }
         }
 
@@ -293,7 +298,7 @@ pipeline {
 
         stage('Release Metadata') {
             steps {
-                churnRunScript('scripts/ci/write-build-metadata.sh', '${ENVIRONMENT} ${DEPLOY_STRATEGY} ${IMAGE_NAME}')
+                churnWriteBuildMetadata(params.ENVIRONMENT, params.DEPLOY_STRATEGY, env.IMAGE_NAME)
             }
         }
     }

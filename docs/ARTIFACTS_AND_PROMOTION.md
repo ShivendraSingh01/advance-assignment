@@ -6,7 +6,7 @@ The pipeline creates a simple build artifact:
 reports/churn-app-<build>-<commit>.tar.gz
 ```
 
-It also writes metadata:
+It also writes metadata through shared-library functions:
 
 - `reports/<artifact>.metadata.json`
 - `reports/promotion.json`

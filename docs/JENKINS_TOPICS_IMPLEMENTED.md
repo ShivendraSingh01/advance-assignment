@@ -9,15 +9,15 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | PR, scheduled, manual triggers | Multibranch Jenkins setup, `cron`, and build parameters |
 | Shared libraries | Jenkinsfile uses wrappers from `jenkins/shared-library/vars` |
 | Pipeline parameterization | Jenkins parameters and `ci/pipeline.yml` |
-| Git branching enforcement | `scripts/ci/check-branch.sh` |
-| Automated metadata tagging | `scripts/ci/write-build-metadata.sh` |
+| Git branching enforcement | `churnCheckBranch` shared-library function |
+| Automated metadata tagging | `churnWriteBuildMetadata` shared-library function |
 | Code review support | `.github/pull_request_template.md` and `.github/CODEOWNERS` |
 | Multi-module/container build | Python modules are tested together, then Docker builds one app image |
-| Unit, regression, and parallel tests | `Parallel Validation` stage, `pytest`, JUnit, coverage, and `reports/feedback-summary.md` |
+| Unit, regression, and parallel tests | `Parallel Validation` stage, `pytest`, JUnit, coverage, and `churnWriteFeedbackSummary` |
 | JUnit and coverage publishing | `reports/junit/pytest.xml`, `reports/coverage.xml`, and a 35% coverage gate |
 | SonarQube quality gate setup | `sonar-project.properties` and optional Jenkins stage |
 | Secret/security scans | Optional pip-audit plus Docker-based Gitleaks, Trivy, and ZAP stages |
-| Artifact lifecycle | `scripts/ci/package-artifact.sh`, optional Nexus upload, promotion metadata, and Jenkins archive |
+| Artifact lifecycle | `churnPackageArtifact`, optional Nexus upload, `churnPromoteArtifact`, and Jenkins archive |
 | Deployment strategies | Environment-aware Terraform deployment parameters |
 | Rollback | Terraform state tracks deployed Kubernetes resources for controlled re-apply |
 | Multibranch pipeline | Jenkinsfile uses `checkout scm` and Jenkins branch env vars |

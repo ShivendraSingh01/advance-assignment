@@ -45,8 +45,9 @@ https://github.com/ShivendraSingh01/advance-assignment.git
 jenkins/shared-library
 ```
 
-The shared-library wrappers live in `jenkins/shared-library/vars` and call the
-scripts under `scripts/ci`.
+The shared-library functions live in `jenkins/shared-library/vars` and own the
+CI actions for branch policy, agent checks, artifact packaging, promotion,
+metadata, feedback summaries, Python setup, and Terraform.
 
 ## Git checkout fix
 
