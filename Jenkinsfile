@@ -20,7 +20,7 @@ pipeline {
         booleanParam(name: 'RUN_DAST', defaultValue: false, description: 'Run Docker-based OWASP ZAP baseline scan after deployment')
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
-        string(name: 'DOCKER_IMAGE', defaultValue: 'yourdockerhub/churn-app', description: 'Docker image repository')
+        string(name: 'DOCKER_IMAGE', defaultValue: 'shivam1999/churn-app', description: 'Docker image repository')
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'ShivendraSingh01_advance-assignment', description: 'SonarQube project key')
         string(name: 'SONAR_ORGANIZATION', defaultValue: 'shivendrasingh01', description: 'SonarCloud organization key')
         string(name: 'SONAR_TOKEN_CREDENTIAL_ID', defaultValue: 'sonarcloud-token', description: 'Jenkins Secret text credential ID for SonarCloud')
