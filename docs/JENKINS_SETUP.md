@@ -161,9 +161,10 @@ artifact tarball in `reports/`.
 
 ## AWS EKS Terraform Deployment
 
-The pipeline creates Kubernetes resources on an existing AWS EKS cluster through
-Terraform. It creates:
+Terraform creates a small AWS EKS environment and deploys the app to it:
 
+- VPC, internet gateway, route table, and two public subnets
+- EKS control plane and managed node group
 - Namespace: `churn-<environment>`
 - Deployment: `churn-app`
 - Service: `churn-app`
@@ -258,8 +259,5 @@ git config core.hooksPath .githooks
 
 ## Deployment notes
 
-The Jenkinsfile asks for approval before `qa` or `prod` deployments.
-
-For a class assignment, rolling deployment is enough. Blue-green and canary are
-included as lightweight placeholders so you can explain the strategy without
-needing a service mesh or advanced traffic routing.
+The Jenkinsfile asks for approval before `qa` or `prod` deployments. The
+`DEPLOY_STRATEGY` value is stored as a Kubernetes label for traceability.

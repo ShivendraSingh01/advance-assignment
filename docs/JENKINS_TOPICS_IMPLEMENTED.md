@@ -8,7 +8,7 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | Environment approvals | `Approval` stage for `qa` and `prod` |
 | PR, scheduled, manual triggers | Multibranch Jenkins setup, `cron`, and build parameters |
 | Shared libraries | Jenkinsfile uses wrappers from `jenkins/shared-library/vars` |
-| Pipeline parameterization | Jenkins parameters and `ci/pipeline.yml` |
+| Pipeline parameterization | Jenkins build parameters and environment-specific files in `ci/environments/` |
 | Git branching enforcement | `churnCheckBranch` shared-library function |
 | Automated metadata tagging | `churnWriteBuildMetadata` shared-library function |
 | Code review support | `.github/pull_request_template.md` and `.github/CODEOWNERS` |

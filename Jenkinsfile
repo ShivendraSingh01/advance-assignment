@@ -56,7 +56,6 @@ pipeline {
         stage('Agent Tool Check') {
             steps {
                 churnCheckAgentTools(
-                    runSecurityScans: params.RUN_SECURITY_SCANS,
                     runSonar: params.RUN_SONAR,
                     runTerraformPlan: params.RUN_TERRAFORM_PLAN,
                     deploy: params.DEPLOY

@@ -1,5 +1,4 @@
 def call(Map config = [:]) {
-    def runSecurityScans = config.runSecurityScans ?: false
     def runSonar = config.runSonar ?: false
     def runTerraformPlan = config.runTerraformPlan ?: false
     def deploy = config.deploy ?: false
@@ -7,7 +6,6 @@ def call(Map config = [:]) {
     sh """
         set -eu
 
-        RUN_SECURITY_SCANS="${runSecurityScans}"
         RUN_SONAR="${runSonar}"
         RUN_TERRAFORM_PLAN="${runTerraformPlan}"
         DEPLOY="${deploy}"
