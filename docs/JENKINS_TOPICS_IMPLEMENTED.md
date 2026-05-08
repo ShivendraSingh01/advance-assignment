@@ -12,18 +12,18 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | Git branching enforcement | `scripts/ci/check-branch.sh` |
 | Automated metadata tagging | `scripts/ci/write-build-metadata.sh` |
 | Code review support | `.github/pull_request_template.md` and `.github/CODEOWNERS` |
-| Multi-module/container build | Docker build stage for the Python app |
-| Unit, regression, and parallel tests | `Parallel Validation` stage and `pytest` |
+| Multi-module/container build | Python modules are tested together, then Docker builds one app image |
+| Unit, regression, and parallel tests | `Parallel Validation` stage, `pytest`, JUnit, coverage, and `reports/feedback-summary.md` |
 | JUnit and coverage publishing | `reports/junit/pytest.xml`, `reports/coverage.xml`, and a 35% coverage gate |
 | SonarQube quality gate setup | `sonar-project.properties` and optional Jenkins stage |
 | Secret/security scans | Optional pip-audit plus Docker-based Gitleaks, Trivy, and ZAP stages |
-| Artifact lifecycle | Jenkins archives reports and model files |
-| Deployment strategies | Rolling, blue-green placeholder, canary placeholder in deploy script |
-| Rollback | Jenkins `post failure` rollback with `kubectl rollout undo` |
+| Artifact lifecycle | `scripts/ci/package-artifact.sh`, optional Nexus upload, promotion metadata, and Jenkins archive |
+| Deployment strategies | Environment-aware Terraform deployment parameters |
+| Rollback | Terraform state tracks deployed Kubernetes resources for controlled re-apply |
 | Multibranch pipeline | Jenkinsfile uses `checkout scm` and Jenkins branch env vars |
 | Jenkins performance basics | Build discarder and disabled concurrent builds |
-| GitOps | Kubernetes manifests under `k8s/` |
-| Terraform with Jenkins | Optional plan stage under `infra/terraform/` |
+| GitOps | Not active in the Jenkins deploy path; Terraform is the single deployment tool |
+| Terraform with Jenkins | Terraform plans/applies Kubernetes resources to AWS EKS from `infra/terraform/` |
 
 The optional tools are disabled by default so a simple Jenkins agent can run the
 main build first. Enable each integration after installing and configuring it.

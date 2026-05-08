@@ -60,11 +60,11 @@ if ! has_command sonar-scanner; then
 fi
 
 if ! has_command terraform; then
-  add_missing_optional terraform "$RUN_TERRAFORM_PLAN"
-fi
-
-if ! has_command kubectl; then
-  add_missing_optional kubectl "$DEPLOY"
+  if [ "$RUN_TERRAFORM_PLAN" = "true" ] || [ "$DEPLOY" = "true" ]; then
+    add_missing_optional terraform true
+  else
+    add_missing_optional terraform false
+  fi
 fi
 
 if ! python3 -m venv --help >/dev/null 2>&1; then
@@ -91,8 +91,7 @@ if [ -n "$missing_enabled_optional" ]; then
   echo ""
   echo "Install only the tools you enabled:"
   echo "- sonar-scanner: SonarQube scan when RUN_SONAR=true"
-  echo "- terraform: Terraform plan when RUN_TERRAFORM_PLAN=true"
-  echo "- kubectl: deployment and rollback when DEPLOY=true"
+  echo "- terraform: Terraform plan/apply when RUN_TERRAFORM_PLAN=true or DEPLOY=true"
   exit 1
 fi
 

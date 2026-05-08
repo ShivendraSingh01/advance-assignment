@@ -9,3 +9,7 @@ reports/
 .docker-config/
 .venv/
 venv/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan

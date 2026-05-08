@@ -21,6 +21,11 @@ pipeline {
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
         string(name: 'DOCKER_IMAGE', defaultValue: 'shivam1999/churn-app', description: 'Docker image repository')
+        string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS region for the EKS cluster')
+        string(name: 'EKS_CLUSTER_NAME', defaultValue: 'advance-assignment-eks', description: 'Existing AWS EKS cluster name')
+        string(name: 'AWS_CREDENTIAL_ID', defaultValue: 'aws-jenkins-credentials', description: 'Jenkins username/password credential for AWS access key and secret')
+        string(name: 'NEXUS_REPO_URL', defaultValue: 'http://65.1.87.174:8081/repository/churn-app/', description: 'Optional Nexus upload URL')
+        string(name: 'NEXUS_CREDENTIAL_ID', defaultValue: 'nexus-credentials', description: 'Optional Nexus username/password credential ID')
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'ShivendraSingh01_advance-assignment', description: 'SonarQube project key')
         string(name: 'SONAR_ORGANIZATION', defaultValue: 'shivendrasingh01', description: 'SonarCloud organization key')
         string(name: 'SONAR_TOKEN_CREDENTIAL_ID', defaultValue: 'sonarcloud-token', description: 'Jenkins Secret text credential ID for SonarCloud')
@@ -151,6 +156,13 @@ pipeline {
             }
         }
 
+        stage('Package Artifact') {
+            steps {
+                sh 'sh scripts/ci/write-feedback-summary.sh'
+                sh 'sh scripts/ci/package-artifact.sh ${IMAGE_NAME}'
+            }
+        }
+
         stage('Code Quality') {
             when {
                 expression { params.RUN_SONAR }
@@ -200,13 +212,46 @@ pipeline {
             }
         }
 
-        stage('Terraform Plan') {
+        stage('Publish Build Artifact') {
             when {
-                expression { params.RUN_TERRAFORM_PLAN }
+                expression { params.NEXUS_REPO_URL?.trim() }
             }
             steps {
-                sh 'terraform -chdir=infra/terraform init -input=false'
-                sh 'terraform -chdir=infra/terraform plan -input=false -var-file=env/${ENVIRONMENT}.tfvars -out=../../reports/tfplan-${ENVIRONMENT}.out'
+                withCredentials([usernamePassword(credentialsId: params.NEXUS_CREDENTIAL_ID, usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    sh '''
+                        curl -f -u "$NEXUS_USER:$NEXUS_PASS" \
+                            -T "reports/${APP_NAME}-${BUILD_NUMBER}-${SHORT_SHA}.tar.gz" \
+                            "${NEXUS_REPO_URL}/${APP_NAME}/${BUILD_NUMBER}/${APP_NAME}-${BUILD_NUMBER}-${SHORT_SHA}.tar.gz"
+                    '''
+                }
+            }
+        }
+
+        stage('Promote Artifact Metadata') {
+            steps {
+                sh 'sh scripts/ci/promote-artifact.sh ${ENVIRONMENT} ${IMAGE_NAME}'
+            }
+        }
+
+        stage('Terraform Plan') {
+            when {
+                expression { params.RUN_TERRAFORM_PLAN || params.DEPLOY }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIAL_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        terraform -chdir=infra/terraform init -input=false
+                        terraform -chdir=infra/terraform validate
+                        terraform -chdir=infra/terraform plan -input=false \
+                            -var-file=env/${ENVIRONMENT}.tfvars \
+                            -var="aws_region=${AWS_REGION}" \
+                            -var="eks_cluster_name=${EKS_CLUSTER_NAME}" \
+                            -var="app_name=${APP_NAME}" \
+                            -var="image=${IMAGE_NAME}" \
+                            -var="deployment_strategy=${DEPLOY_STRATEGY}" \
+                            -out=../../reports/tfplan-${ENVIRONMENT}.out
+                    '''
+                }
             }
         }
 
@@ -219,12 +264,25 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Terraform Apply') {
             when {
                 expression { params.DEPLOY }
             }
             steps {
-                sh 'sh scripts/ci/deploy.sh ${ENVIRONMENT} ${DEPLOY_STRATEGY} ${IMAGE_NAME}'
+                withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIAL_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        terraform -chdir=infra/terraform plan -input=false \
+                            -var-file=env/${ENVIRONMENT}.tfvars \
+                            -var="aws_region=${AWS_REGION}" \
+                            -var="eks_cluster_name=${EKS_CLUSTER_NAME}" \
+                            -var="app_name=${APP_NAME}" \
+                            -var="image=${IMAGE_NAME}" \
+                            -var="deployment_strategy=${DEPLOY_STRATEGY}" \
+                            -out=../../reports/tfplan-${ENVIRONMENT}.out
+
+                        terraform -chdir=infra/terraform apply -input=false -auto-approve ../../reports/tfplan-${ENVIRONMENT}.out
+                    '''
+                }
             }
         }
 
@@ -252,13 +310,6 @@ pipeline {
     post {
         always {
             archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/**/*,model/*.pkl,model/columns.pkl'
-        }
-        failure {
-            script {
-                if (params.DEPLOY) {
-                    sh 'kubectl -n churn-${ENVIRONMENT} rollout undo deployment/churn-app || true'
-                }
-            }
         }
     }
 }

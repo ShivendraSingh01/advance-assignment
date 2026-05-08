@@ -42,8 +42,7 @@ build again.
 - Gitleaks: runs through Docker when `RUN_SECURITY_SCANS=true`.
 - Trivy: runs through Docker when `RUN_SECURITY_SCANS=true`.
 - OWASP ZAP baseline: runs through Docker when `RUN_DAST=true`.
-- Terraform CLI: required when `RUN_TERRAFORM_PLAN=true`.
-- kubectl: required when `DEPLOY=true`.
+- Terraform CLI: required when `RUN_TERRAFORM_PLAN=true` or `DEPLOY=true`.
 
 ## Agent tool check
 
@@ -61,8 +60,7 @@ It also checks optional installed tools and only fails when the matching Jenkins
 parameter is enabled:
 
 - `sonar-scanner` when `RUN_SONAR=true`
-- `terraform` when `RUN_TERRAFORM_PLAN=true`
-- `kubectl` when `DEPLOY=true`
+- `terraform` when `RUN_TERRAFORM_PLAN=true` or `DEPLOY=true`
 
 Gitleaks, Trivy, and OWASP ZAP are not installed on the Jenkins server. They run
 as Docker containers:
@@ -92,7 +90,10 @@ sudo systemctl restart jenkins
 ## Credentials to create
 
 - `dockerhub-token`: username/password credential used when `PUSH_IMAGE=true`.
-- Kubernetes access: configure kubeconfig on the Jenkins agent for deployments.
+- `nexus-credentials`: optional username/password credential used when
+  `NEXUS_REPO_URL` is set for Nexus uploads.
+- `aws-jenkins-credentials`: username/password credential where username is
+  `AWS_ACCESS_KEY_ID` and password is `AWS_SECRET_ACCESS_KEY`.
 - SonarQube token: configure it in your Jenkins SonarQube installation if you
   decide to use SonarQube.
 
@@ -115,6 +116,49 @@ To add the token in Jenkins:
 8. Save.
 
 The pipeline reads that secret only during the Sonar stage.
+
+## Artifact Repository
+
+If you have Nexus, set:
+
+- `NEXUS_REPO_URL`: upload URL, for example
+  `https://nexus.example.com/repository/churn-app`.
+- `NEXUS_CREDENTIAL_ID`: Jenkins username/password credential ID.
+
+If `NEXUS_REPO_URL` is empty, Jenkins still creates and archives the local
+artifact tarball in `reports/`.
+
+## AWS EKS Terraform Deployment
+
+The pipeline creates Kubernetes resources on an existing AWS EKS cluster through
+Terraform. It creates:
+
+- Namespace: `churn-<environment>`
+- Deployment: `churn-app`
+- Service: `churn-app`
+
+Set these Jenkins parameters:
+
+- `AWS_REGION`: AWS region of the EKS cluster, for example `ap-south-1`.
+- `EKS_CLUSTER_NAME`: existing EKS cluster name.
+- `AWS_CREDENTIAL_ID`: Jenkins credential ID, default `aws-jenkins-credentials`.
+- `DEPLOY_STRATEGY`: stored as a Kubernetes label for traceability.
+
+Use `RUN_TERRAFORM_PLAN=true` to only run:
+
+```bash
+terraform plan
+```
+
+Use `DEPLOY=true` to run:
+
+```bash
+terraform plan
+terraform apply
+```
+
+The AWS IAM user or role must have `eks:DescribeCluster` access and Kubernetes
+permissions inside the EKS cluster.
 
 ## Local checks
 
@@ -145,7 +189,6 @@ git config core.hooksPath .githooks
 
 ## Deployment notes
 
-The manifests under `k8s/` are simple examples for `dev`, `qa`, and `prod`.
 The Jenkinsfile asks for approval before `qa` or `prod` deployments.
 
 For a class assignment, rolling deployment is enough. Blue-green and canary are
