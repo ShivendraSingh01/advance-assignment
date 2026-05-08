@@ -7,7 +7,7 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | CI/CD pipeline design | `Jenkinsfile` stages from checkout to metadata archive |
 | Environment approvals | `Approval` stage for `qa` and `prod` |
 | PR, scheduled, manual triggers | Multibranch Jenkins setup, `cron`, and build parameters |
-| Shared libraries | Example in `jenkins/shared-library/vars/churnNotify.groovy` |
+| Shared libraries | Jenkinsfile uses wrappers from `jenkins/shared-library/vars` |
 | Pipeline parameterization | Jenkins parameters and `ci/pipeline.yml` |
 | Git branching enforcement | `scripts/ci/check-branch.sh` |
 | Automated metadata tagging | `scripts/ci/write-build-metadata.sh` |

@@ -1,3 +1,5 @@
+@Library('churn-shared-library') _
+
 pipeline {
     agent any
 
@@ -18,6 +20,7 @@ pipeline {
         booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube scan')
         booleanParam(name: 'RUN_SECURITY_SCANS', defaultValue: false, description: 'Run pip-audit, Docker-based Gitleaks, and Docker-based Trivy')
         booleanParam(name: 'RUN_DAST', defaultValue: false, description: 'Run Docker-based OWASP ZAP baseline scan after deployment')
+        string(name: 'DAST_TARGET_URL', defaultValue: '', description: 'Reachable app URL for OWASP ZAP, for example http://load-balancer-url')
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
         string(name: 'DOCKER_IMAGE', defaultValue: 'shivam1999/churn-app', description: 'Docker image repository')
@@ -45,19 +48,20 @@ pipeline {
                 script {
                     env.SHORT_SHA = env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
                     env.IMAGE_NAME = "${params.DOCKER_IMAGE}:${env.BUILD_NUMBER}-${env.SHORT_SHA}"
+                    churnNotify("Image version created: ${env.IMAGE_NAME}")
                 }
             }
         }
 
         stage('Agent Tool Check') {
             steps {
-                sh 'sh scripts/ci/check-agent-tools.sh ${RUN_SECURITY_SCANS} ${RUN_SONAR} ${RUN_DAST} ${RUN_TERRAFORM_PLAN} ${DEPLOY}'
+                churnRunScript('scripts/ci/check-agent-tools.sh', '${RUN_SECURITY_SCANS} ${RUN_SONAR} ${RUN_DAST} ${RUN_TERRAFORM_PLAN} ${DEPLOY}')
             }
         }
 
         stage('Branch Policy') {
             steps {
-                sh 'sh scripts/ci/check-branch.sh'
+                churnRunScript('scripts/ci/check-branch.sh')
             }
         }
 
@@ -69,28 +73,7 @@ pipeline {
 
         stage('Resolve Python') {
             steps {
-                script {
-                    def systemPython = sh(
-                        script: 'command -v python3 || command -v python || true',
-                        returnStdout: true
-                    ).trim()
-
-                    if (!systemPython) {
-                        error 'Python was not found. Install python3 and python3-pip on the Jenkins agent.'
-                    }
-
-                    sh """
-                        "${systemPython}" -m venv .venv || {
-                            echo "Could not create Python virtual environment."
-                            echo "Install python3-venv and python3-pip on the Jenkins agent."
-                            exit 1
-                        }
-                    """
-
-                    env.PYTHON_BIN = '.venv/bin/python'
-                    sh '"${PYTHON_BIN}" -m pip --version'
-                    echo "Using Python: ${env.PYTHON_BIN}"
-                }
+                churnPythonSetup()
             }
         }
 
@@ -160,8 +143,8 @@ pipeline {
 
         stage('Package Artifact') {
             steps {
-                sh 'sh scripts/ci/write-feedback-summary.sh'
-                sh 'sh scripts/ci/package-artifact.sh ${IMAGE_NAME}'
+                churnRunScript('scripts/ci/write-feedback-summary.sh')
+                churnRunScript('scripts/ci/package-artifact.sh', '${IMAGE_NAME}')
             }
         }
 
@@ -231,7 +214,7 @@ pipeline {
 
         stage('Promote Artifact Metadata') {
             steps {
-                sh 'sh scripts/ci/promote-artifact.sh ${ENVIRONMENT} ${IMAGE_NAME}'
+                churnRunScript('scripts/ci/promote-artifact.sh', '${ENVIRONMENT} ${IMAGE_NAME}')
             }
         }
 
@@ -241,20 +224,16 @@ pipeline {
             }
             steps {
                 withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIAL_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                    sh '''
-                        terraform -chdir=infra/terraform init -input=false
-                        terraform -chdir=infra/terraform validate
-                        terraform -chdir=infra/terraform plan -input=false \
-                            -var-file=env/${ENVIRONMENT}.tfvars \
-                            -var="aws_region=${AWS_REGION}" \
-                            -var="eks_cluster_name=${EKS_CLUSTER_NAME}" \
-                            -var="app_name=${APP_NAME}" \
-                            -var="image=${IMAGE_NAME}" \
-                            -var="deployment_strategy=${DEPLOY_STRATEGY}" \
-                            -var="eks_version=${EKS_VERSION}" \
-                            -var='node_instance_types=["'${EKS_NODE_INSTANCE_TYPE}'"]' \
-                            -out=../../reports/tfplan-${ENVIRONMENT}.out
-                    '''
+                    churnTerraformPlan(
+                        environment: env.ENVIRONMENT,
+                        awsRegion: env.AWS_REGION,
+                        eksClusterName: env.EKS_CLUSTER_NAME,
+                        appName: env.APP_NAME,
+                        imageName: env.IMAGE_NAME,
+                        deploymentStrategy: env.DEPLOY_STRATEGY,
+                        eksVersion: env.EKS_VERSION,
+                        nodeInstanceType: env.EKS_NODE_INSTANCE_TYPE
+                    )
                 }
             }
         }
@@ -274,20 +253,17 @@ pipeline {
             }
             steps {
                 withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIAL_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                    sh '''
-                        terraform -chdir=infra/terraform plan -input=false \
-                            -var-file=env/${ENVIRONMENT}.tfvars \
-                            -var="aws_region=${AWS_REGION}" \
-                            -var="eks_cluster_name=${EKS_CLUSTER_NAME}" \
-                            -var="app_name=${APP_NAME}" \
-                            -var="image=${IMAGE_NAME}" \
-                            -var="deployment_strategy=${DEPLOY_STRATEGY}" \
-                            -var="eks_version=${EKS_VERSION}" \
-                            -var='node_instance_types=["'${EKS_NODE_INSTANCE_TYPE}'"]' \
-                            -out=../../reports/tfplan-${ENVIRONMENT}.out
-
-                        terraform -chdir=infra/terraform apply -input=false -auto-approve ../../reports/tfplan-${ENVIRONMENT}.out
-                    '''
+                    churnTerraformPlan(
+                        environment: env.ENVIRONMENT,
+                        awsRegion: env.AWS_REGION,
+                        eksClusterName: env.EKS_CLUSTER_NAME,
+                        appName: env.APP_NAME,
+                        imageName: env.IMAGE_NAME,
+                        deploymentStrategy: env.DEPLOY_STRATEGY,
+                        eksVersion: env.EKS_VERSION,
+                        nodeInstanceType: env.EKS_NODE_INSTANCE_TYPE
+                    )
+                    churnTerraformApply(env.ENVIRONMENT)
                 }
             }
         }
@@ -298,17 +274,26 @@ pipeline {
             }
             steps {
                 sh '''
+                    if [ -z "${DAST_TARGET_URL}" ]; then
+                        echo "DAST_TARGET_URL is empty."
+                        echo "Set it to a reachable app URL, for example the EKS LoadBalancer URL."
+                        exit 1
+                    fi
+
+                    mkdir -p reports
+                    chmod 777 reports
+
                     docker run --rm \
                         -v "$PWD/reports:/zap/wrk/:rw" \
                         ghcr.io/zaproxy/zaproxy:stable \
-                        zap-baseline.py -t http://churn-app-${ENVIRONMENT}.example.com -r zap-baseline.html
+                        zap-baseline.py -t "${DAST_TARGET_URL}" -r zap-baseline.html
                 '''
             }
         }
 
         stage('Release Metadata') {
             steps {
-                sh 'sh scripts/ci/write-build-metadata.sh ${ENVIRONMENT} ${DEPLOY_STRATEGY} ${IMAGE_NAME}'
+                churnRunScript('scripts/ci/write-build-metadata.sh', '${ENVIRONMENT} ${DEPLOY_STRATEGY} ${IMAGE_NAME}')
             }
         }
     }

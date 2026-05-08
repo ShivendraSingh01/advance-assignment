@@ -18,6 +18,36 @@ from the job configuration.
 Manual builds use the Jenkins build button and parameters. Scheduled builds use
 the cron trigger already present in the Jenkinsfile.
 
+## Shared Library
+
+The Jenkinsfile uses this same repo as a Jenkins shared library:
+
+```groovy
+@Library('churn-shared-library') _
+```
+
+Configure it in Jenkins:
+
+1. Go to **Manage Jenkins** > **System**.
+2. Find **Global Trusted Pipeline Libraries**.
+3. Add a library named `churn-shared-library`.
+4. Set default version to `main`.
+5. Use Git as the retrieval method.
+6. Repository URL:
+
+```text
+https://github.com/ShivendraSingh01/advance-assignment.git
+```
+
+7. Set library path to:
+
+```text
+jenkins/shared-library
+```
+
+The shared-library wrappers live in `jenkins/shared-library/vars` and call the
+scripts under `scripts/ci`.
+
 ## Git checkout fix
 
 If Jenkins shows `https://github.com/yourrepo/churn-mlops-project.git`, the job
@@ -163,6 +193,20 @@ Terraform creates the EKS cluster, node group, VPC, subnets, IAM roles, and the
 Kubernetes app resources. For an assignment, the simplest AWS setup is to use a
 temporary IAM user with broad permissions, then delete it after the assignment.
 
+For `dev`, Terraform creates a Kubernetes `LoadBalancer` service. After deploy,
+Jenkins prints these Terraform outputs:
+
+```text
+service_hostname
+service_ip
+```
+
+Use the hostname as the DAST target:
+
+```text
+DAST_TARGET_URL=http://<service_hostname>
+```
+
 At minimum, the Jenkins AWS identity needs permissions across:
 
 - EKS cluster and node group management
@@ -171,6 +215,18 @@ At minimum, the Jenkins AWS identity needs permissions across:
 - STS caller identity access
 
 Remember to destroy the EKS environment after testing to avoid AWS charges.
+
+## DAST Target URL
+
+OWASP ZAP runs in Docker when `RUN_DAST=true`. It needs a real reachable URL.
+Set:
+
+```text
+DAST_TARGET_URL=http://your-load-balancer-or-public-app-url
+```
+
+Do not use the placeholder `http://churn-app-dev.example.com` unless you own
+that DNS name and it resolves to your app.
 
 ## Local checks
 
