@@ -20,6 +20,7 @@ pipeline {
         booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube scan')
         booleanParam(name: 'RUN_SECURITY_SCANS', defaultValue: false, description: 'Run pip-audit, Docker-based Gitleaks, and Docker-based Trivy')
         booleanParam(name: 'RUN_DAST', defaultValue: false, description: 'Run Docker-based OWASP ZAP baseline scan after deployment')
+        booleanParam(name: 'RUN_ARGOCD_CHECK', defaultValue: false, description: 'Check Kubernetes app health through ArgoCD after Helm deployment')
         string(name: 'DAST_TARGET_URL', defaultValue: '', description: 'Reachable app URL for OWASP ZAP, for example http://load-balancer-url')
         booleanParam(name: 'RUN_TERRAFORM_PLAN', defaultValue: false, description: 'Run a Terraform plan')
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
@@ -34,6 +35,9 @@ pipeline {
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'ShivendraSingh01_advance-assignment', description: 'SonarQube project key')
         string(name: 'SONAR_ORGANIZATION', defaultValue: 'shivendrasingh01', description: 'SonarCloud organization key')
         string(name: 'SONAR_TOKEN_CREDENTIAL_ID', defaultValue: 'sonarcloud-token', description: 'Jenkins Secret text credential ID for SonarCloud')
+        string(name: 'ARGOCD_SERVER', defaultValue: '', description: 'ArgoCD server host, for example argocd.example.com')
+        string(name: 'ARGOCD_APP_NAME', defaultValue: '', description: 'ArgoCD app to check. Empty uses churn-app-ENVIRONMENT')
+        string(name: 'ARGOCD_TOKEN_CREDENTIAL_ID', defaultValue: 'argocd-token', description: 'Jenkins Secret text credential ID for ArgoCD token')
     }
 
     environment {
@@ -57,6 +61,7 @@ pipeline {
             steps {
                 churnCheckAgentTools(
                     runSonar: params.RUN_SONAR,
+                    runArgocdCheck: params.RUN_ARGOCD_CHECK,
                     runTerraformPlan: params.RUN_TERRAFORM_PLAN,
                     deploy: params.DEPLOY
                 )
@@ -222,6 +227,19 @@ pipeline {
             }
         }
 
+        stage('Deployment Input Check') {
+            when {
+                expression { params.DEPLOY }
+            }
+            steps {
+                script {
+                    if (!params.PUSH_IMAGE) {
+                        error('DEPLOY=true requires PUSH_IMAGE=true so EKS can pull the image from Docker Hub.')
+                    }
+                }
+            }
+        }
+
         stage('Terraform Plan') {
             when {
                 expression { params.RUN_TERRAFORM_PLAN || params.DEPLOY }
@@ -233,8 +251,6 @@ pipeline {
                         awsRegion: env.AWS_REGION,
                         eksClusterName: env.EKS_CLUSTER_NAME,
                         appName: env.APP_NAME,
-                        imageName: env.IMAGE_NAME,
-                        deploymentStrategy: env.DEPLOY_STRATEGY,
                         eksVersion: env.EKS_VERSION,
                         nodeInstanceType: env.EKS_NODE_INSTANCE_TYPE
                     )
@@ -262,12 +278,56 @@ pipeline {
                         awsRegion: env.AWS_REGION,
                         eksClusterName: env.EKS_CLUSTER_NAME,
                         appName: env.APP_NAME,
-                        imageName: env.IMAGE_NAME,
-                        deploymentStrategy: env.DEPLOY_STRATEGY,
                         eksVersion: env.EKS_VERSION,
                         nodeInstanceType: env.EKS_NODE_INSTANCE_TYPE
                     )
                     churnTerraformApply(env.ENVIRONMENT)
+                }
+            }
+        }
+
+        stage('Helm Deploy') {
+            when {
+                expression { params.DEPLOY }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: params.AWS_CREDENTIAL_ID, usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    script {
+                        def detectedUrl = churnHelmDeploy(
+                            environment: env.ENVIRONMENT,
+                            awsRegion: env.AWS_REGION,
+                            eksClusterName: env.EKS_CLUSTER_NAME,
+                            appName: env.APP_NAME,
+                            releaseName: env.APP_NAME,
+                            imageName: env.IMAGE_NAME,
+                            deploymentStrategy: env.DEPLOY_STRATEGY
+                        )
+
+                        if (!params.DAST_TARGET_URL?.trim() && detectedUrl) {
+                            env.DAST_TARGET_URL = detectedUrl
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('ArgoCD Kubernetes Check') {
+            when {
+                expression { params.DEPLOY && params.RUN_ARGOCD_CHECK }
+            }
+            steps {
+                withCredentials([string(credentialsId: params.ARGOCD_TOKEN_CREDENTIAL_ID, variable: 'ARGOCD_AUTH_TOKEN')]) {
+                    script {
+                        def argoAppName = params.ARGOCD_APP_NAME?.trim()
+                        if (!argoAppName) {
+                            argoAppName = "${env.APP_NAME}-${params.ENVIRONMENT}"
+                        }
+
+                        churnArgocdCheck(
+                            server: params.ARGOCD_SERVER,
+                            appName: argoAppName
+                        )
+                    }
                 }
             }
         }

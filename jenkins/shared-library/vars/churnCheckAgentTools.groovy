@@ -1,5 +1,6 @@
 def call(Map config = [:]) {
     def runSonar = config.runSonar ?: false
+    def runArgocdCheck = config.runArgocdCheck ?: false
     def runTerraformPlan = config.runTerraformPlan ?: false
     def deploy = config.deploy ?: false
 
@@ -7,6 +8,7 @@ def call(Map config = [:]) {
         set -eu
 
         RUN_SONAR="${runSonar}"
+        RUN_ARGOCD_CHECK="${runArgocdCheck}"
         RUN_TERRAFORM_PLAN="${runTerraformPlan}"
         DEPLOY="${deploy}"
 
@@ -51,12 +53,26 @@ def call(Map config = [:]) {
           add_missing_optional sonar-scanner "\$RUN_SONAR"
         fi
 
+        if ! has_command argocd; then
+          add_missing_optional argocd "\$RUN_ARGOCD_CHECK"
+        fi
+
         if ! has_command terraform; then
           if [ "\$RUN_TERRAFORM_PLAN" = "true" ] || [ "\$DEPLOY" = "true" ]; then
             add_missing_optional terraform true
           else
             add_missing_optional terraform false
           fi
+        fi
+
+        if [ "\$DEPLOY" = "true" ]; then
+          if ! has_command aws; then add_missing_optional aws true; fi
+          if ! has_command helm; then add_missing_optional helm true; fi
+          if ! has_command kubectl; then add_missing_optional kubectl true; fi
+        else
+          if ! has_command aws; then add_missing_optional aws false; fi
+          if ! has_command helm; then add_missing_optional helm false; fi
+          if ! has_command kubectl; then add_missing_optional kubectl false; fi
         fi
 
         if ! python3 -m venv --help >/dev/null 2>&1; then
@@ -83,7 +99,9 @@ def call(Map config = [:]) {
           echo ""
           echo "Install only the tools you enabled:"
           echo "- sonar-scanner: SonarQube scan when RUN_SONAR=true"
+          echo "- argocd: ArgoCD Kubernetes health check when RUN_ARGOCD_CHECK=true"
           echo "- terraform: Terraform plan/apply when RUN_TERRAFORM_PLAN=true or DEPLOY=true"
+          echo "- aws, helm, kubectl: EKS Helm deployment when DEPLOY=true"
           exit 1
         fi
 

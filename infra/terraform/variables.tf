@@ -19,30 +19,6 @@ variable "app_name" {
   description = "Application name used for Kubernetes resources."
 }
 
-variable "image" {
-  type        = string
-  default     = "shivam1999/churn-app:latest"
-  description = "Docker image to deploy."
-}
-
-variable "replicas" {
-  type        = number
-  default     = 1
-  description = "Number of application pods."
-}
-
-variable "service_type" {
-  type        = string
-  default     = "ClusterIP"
-  description = "Kubernetes service type."
-}
-
-variable "deployment_strategy" {
-  type        = string
-  default     = "rolling"
-  description = "Deployment strategy label used for traceability."
-}
-
 variable "vpc_cidr" {
   type        = string
   default     = "10.50.0.0/16"

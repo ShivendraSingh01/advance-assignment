@@ -47,7 +47,8 @@ jenkins/shared-library
 
 The shared-library functions live in `jenkins/shared-library/vars` and own the
 CI actions for branch policy, agent checks, artifact packaging, promotion,
-metadata, feedback summaries, Python setup, and Terraform.
+metadata, feedback summaries, Python setup, Terraform, and Helm deployment.
+ArgoCD is used only as a Kubernetes visibility and health check when enabled.
 
 ## Git checkout fix
 
@@ -73,7 +74,9 @@ build again.
 - Gitleaks: runs through Docker when `RUN_SECURITY_SCANS=true`.
 - Trivy: runs through Docker when `RUN_SECURITY_SCANS=true`.
 - OWASP ZAP baseline: runs through Docker when `RUN_DAST=true`.
+- ArgoCD CLI: required when `RUN_ARGOCD_CHECK=true`.
 - Terraform CLI: required when `RUN_TERRAFORM_PLAN=true` or `DEPLOY=true`.
+- AWS CLI, Helm, and kubectl: required when `DEPLOY=true`.
 
 ## Agent tool check
 
@@ -91,7 +94,9 @@ It also checks optional installed tools and only fails when the matching Jenkins
 parameter is enabled:
 
 - `sonar-scanner` when `RUN_SONAR=true`
+- `argocd` when `RUN_ARGOCD_CHECK=true`
 - `terraform` when `RUN_TERRAFORM_PLAN=true` or `DEPLOY=true`
+- `aws`, `helm`, and `kubectl` when `DEPLOY=true`
 
 Gitleaks, Trivy, and OWASP ZAP are not installed on the Jenkins server. They run
 as Docker containers:
@@ -110,6 +115,26 @@ sudo apt-get update
 sudo apt-get install -y git python3 python3-pip python3-venv docker.io curl
 ```
 
+For deployment jobs, also install these tools:
+
+```bash
+# AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# kubectl
+curl -LO "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# ArgoCD CLI
+curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 0755 argocd /usr/local/bin/argocd
+```
+
 Docker also needs daemon access. If Docker is installed but Jenkins cannot use
 it, run:
 
@@ -125,6 +150,7 @@ sudo systemctl restart jenkins
   `NEXUS_REPO_URL` is set for Nexus uploads.
 - `aws-jenkins-credentials`: username/password credential where username is
   `AWS_ACCESS_KEY_ID` and password is `AWS_SECRET_ACCESS_KEY`.
+- `argocd-token`: optional Secret text credential for ArgoCD checks.
 - SonarQube token: configure it in your Jenkins SonarQube installation if you
   decide to use SonarQube.
 
@@ -159,15 +185,23 @@ If you have Nexus, set:
 If `NEXUS_REPO_URL` is empty, Jenkins still creates and archives the local
 artifact tarball in `reports/`.
 
-## AWS EKS Terraform Deployment
+## AWS EKS Terraform And Helm Deployment
 
-Terraform creates a small AWS EKS environment and deploys the app to it:
+Terraform creates a small AWS EKS environment:
 
 - VPC, internet gateway, route table, and two public subnets
 - EKS control plane and managed node group
+
+Helm deploys the app after Terraform finishes:
+
+- Chart: `charts/churn-app`
 - Namespace: `churn-<environment>`
+- Release: `churn-app`
 - Deployment: `churn-app`
 - Service: `churn-app`
+
+ArgoCD does not deploy the app in this pipeline. It is only used after Helm to
+check the Kubernetes app health/status.
 
 Set these Jenkins parameters:
 
@@ -176,7 +210,13 @@ Set these Jenkins parameters:
 - `AWS_CREDENTIAL_ID`: Jenkins credential ID, default `aws-jenkins-credentials`.
 - `EKS_VERSION`: EKS Kubernetes version.
 - `EKS_NODE_INSTANCE_TYPE`: worker node instance type, default `t3.small`.
-- `DEPLOY_STRATEGY`: stored as a Kubernetes label for traceability.
+- `DEPLOY_STRATEGY`: passed to Helm as a Kubernetes label for traceability.
+- `RUN_ARGOCD_CHECK`: checks the app in ArgoCD after Helm deployment.
+- `ARGOCD_SERVER`: ArgoCD server host, for example `argocd.example.com`.
+- `ARGOCD_APP_NAME`: ArgoCD app name to check. Empty uses
+  `churn-app-<environment>`.
+- `ARGOCD_TOKEN_CREDENTIAL_ID`: Jenkins Secret text credential ID. Default:
+  `argocd-token`.
 
 Use `RUN_TERRAFORM_PLAN=true` to only run:
 
@@ -189,24 +229,45 @@ Use `DEPLOY=true` to run:
 ```bash
 terraform plan
 terraform apply
+helm upgrade --install
+argocd app get
+argocd app wait --health
 ```
 
-Terraform creates the EKS cluster, node group, VPC, subnets, IAM roles, and the
-Kubernetes app resources. For an assignment, the simplest AWS setup is to use a
-temporary IAM user with broad permissions, then delete it after the assignment.
+Terraform creates the EKS cluster, node group, VPC, subnets, and IAM roles.
+Helm creates the Kubernetes namespace, deployment, and service. For an
+assignment, the simplest AWS setup is to use a temporary IAM user with broad
+permissions, then delete it after the assignment.
 
-For `dev`, Terraform creates a Kubernetes `LoadBalancer` service. After deploy,
-Jenkins prints these Terraform outputs:
+To use ArgoCD checking, create an ArgoCD application that points at this repo
+and chart, but keep automatic sync disabled if you want Jenkins/Helm to remain
+the deployment owner:
 
-```text
-service_hostname
-service_ip
+```bash
+argocd app create churn-app-dev \
+  --repo https://github.com/ShivendraSingh01/advance-assignment.git \
+  --path charts/churn-app \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace churn-dev
 ```
 
-Use the hostname as the DAST target:
+Then create an ArgoCD token and store it in Jenkins as Secret text with ID:
 
 ```text
-DAST_TARGET_URL=http://<service_hostname>
+argocd-token
+```
+
+For `dev`, Helm creates a Kubernetes `LoadBalancer` service. After deploy,
+Jenkins prints the service and writes the detected URL to:
+
+```text
+reports/service-url-dev.txt
+```
+
+Use that hostname as the DAST target:
+
+```text
+DAST_TARGET_URL=http://<load-balancer-hostname>
 ```
 
 At minimum, the Jenkins AWS identity needs permissions across:

@@ -1,0 +1,16 @@
+replicaCount: 1
+
+image:
+  repository: shivam1999/churn-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+environment: dev
+deploymentStrategy: rolling
+
+resources: {}

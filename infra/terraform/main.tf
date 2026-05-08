@@ -6,10 +6,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.30"
-    }
   }
 }
 
@@ -22,9 +18,12 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  namespace          = "churn-${var.environment}"
   cluster_name       = var.eks_cluster_name
   availability_zones = slice(data.aws_availability_zones.available.names, 0, 2)
+  common_tags = {
+    app         = var.app_name
+    environment = var.environment
+  }
 }
 
 resource "aws_vpc" "main" {
@@ -32,17 +31,17 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${local.cluster_name}-vpc"
-  }
+  })
 }
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${local.cluster_name}-igw"
-  }
+  })
 }
 
 resource "aws_subnet" "public" {
@@ -53,11 +52,11 @@ resource "aws_subnet" "public" {
   availability_zone       = local.availability_zones[count.index]
   map_public_ip_on_launch = true
 
-  tags = {
-    Name                                      = "${local.cluster_name}-public-${count.index + 1}"
+  tags = merge(local.common_tags, {
+    Name                                            = "${local.cluster_name}-public-${count.index + 1}"
     "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                 = "1"
-  }
+    "kubernetes.io/role/elb"                       = "1"
+  })
 }
 
 resource "aws_route_table" "public" {
@@ -68,9 +67,9 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.main.id
   }
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = "${local.cluster_name}-public-rt"
-  }
+  })
 }
 
 resource "aws_route_table_association" "public" {
@@ -122,9 +121,9 @@ resource "aws_eks_cluster" "main" {
     aws_iam_role_policy_attachment.cluster_policy
   ]
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name = local.cluster_name
-  }
+  })
 }
 
 resource "aws_iam_role" "node" {
@@ -180,149 +179,14 @@ resource "aws_eks_node_group" "main" {
   ]
 }
 
-data "aws_eks_cluster_auth" "main" {
-  name = aws_eks_cluster.main.name
-}
-
-provider "kubernetes" {
-  host                   = aws_eks_cluster.main.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.main.token
-}
-
-resource "kubernetes_namespace" "app" {
-  depends_on = [aws_eks_node_group.main]
-
-  metadata {
-    name = local.namespace
-
-    labels = {
-      app          = var.app_name
-      environment  = var.environment
-      "managed-by" = "terraform"
-      strategy     = var.deployment_strategy
-    }
-  }
-}
-
-resource "kubernetes_deployment" "app" {
-  depends_on = [aws_eks_node_group.main]
-
-  metadata {
-    name      = var.app_name
-    namespace = kubernetes_namespace.app.metadata[0].name
-
-    labels = {
-      app         = var.app_name
-      environment = var.environment
-      strategy    = var.deployment_strategy
-    }
-  }
-
-  spec {
-    replicas = var.replicas
-
-    selector {
-      match_labels = {
-        app = var.app_name
-      }
-    }
-
-    template {
-      metadata {
-        labels = {
-          app         = var.app_name
-          environment = var.environment
-          strategy    = var.deployment_strategy
-        }
-      }
-
-      spec {
-        container {
-          name              = var.app_name
-          image             = var.image
-          image_pull_policy = "IfNotPresent"
-
-          port {
-            container_port = 8000
-          }
-
-          readiness_probe {
-            http_get {
-              path = "/health"
-              port = 8000
-            }
-            initial_delay_seconds = 5
-            period_seconds        = 10
-          }
-
-          liveness_probe {
-            http_get {
-              path = "/health"
-              port = 8000
-            }
-            initial_delay_seconds = 15
-            period_seconds        = 20
-          }
-        }
-      }
-    }
-  }
-}
-
-resource "kubernetes_service" "app" {
-  depends_on = [aws_eks_node_group.main]
-
-  metadata {
-    name      = var.app_name
-    namespace = kubernetes_namespace.app.metadata[0].name
-
-    labels = {
-      app         = var.app_name
-      environment = var.environment
-      strategy    = var.deployment_strategy
-    }
-  }
-
-  spec {
-    type = var.service_type
-
-    selector = {
-      app = var.app_name
-    }
-
-    port {
-      name        = "http"
-      port        = 80
-      target_port = 8000
-    }
-  }
-}
-
 output "cluster_name" {
   value = aws_eks_cluster.main.name
 }
 
-output "namespace" {
-  value = kubernetes_namespace.app.metadata[0].name
+output "node_group_name" {
+  value = aws_eks_node_group.main.node_group_name
 }
 
-output "deployment_name" {
-  value = kubernetes_deployment.app.metadata[0].name
-}
-
-output "service_name" {
-  value = kubernetes_service.app.metadata[0].name
-}
-
-output "service_type" {
-  value = kubernetes_service.app.spec[0].type
-}
-
-output "service_hostname" {
-  value = try(kubernetes_service.app.status[0].load_balancer[0].ingress[0].hostname, "")
-}
-
-output "service_ip" {
-  value = try(kubernetes_service.app.status[0].load_balancer[0].ingress[0].ip, "")
+output "cluster_endpoint" {
+  value = aws_eks_cluster.main.endpoint
 }

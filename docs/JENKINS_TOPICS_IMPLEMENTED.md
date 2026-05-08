@@ -18,12 +18,14 @@ This project keeps the Jenkins implementation practical and beginner-friendly.
 | SonarQube quality gate setup | `sonar-project.properties` and optional Jenkins stage |
 | Secret/security scans | Optional pip-audit plus Docker-based Gitleaks, Trivy, and ZAP stages |
 | Artifact lifecycle | `churnPackageArtifact`, optional Nexus upload, `churnPromoteArtifact`, and Jenkins archive |
-| Deployment strategies | Environment-aware Terraform deployment parameters |
-| Rollback | Terraform state tracks deployed Kubernetes resources for controlled re-apply |
+| Deployment strategies | Environment-aware Helm deployment parameters |
+| Rollback | Helm release history can roll back the Kubernetes deployment |
 | Multibranch pipeline | Jenkinsfile uses `checkout scm` and Jenkins branch env vars |
 | Jenkins performance basics | Build discarder and disabled concurrent builds |
-| GitOps | Not active in the Jenkins deploy path; Terraform is the single deployment tool |
-| Terraform with Jenkins | Terraform plans/applies Kubernetes resources to AWS EKS from `infra/terraform/` |
+| GitOps | ArgoCD can check Kubernetes app health/status after Helm deployment |
+| Terraform with Jenkins | Terraform plans/applies AWS EKS infrastructure from `infra/terraform/` |
+| Helm with Jenkins | Jenkins deploys `charts/churn-app` to EKS with `helm upgrade --install` |
+| ArgoCD with Jenkins | Optional `ArgoCD Kubernetes Check` stage runs `argocd app get` and `argocd app wait --health` |
 
 The optional tools are disabled by default so a simple Jenkins agent can run the
 main build first. Enable each integration after installing and configuring it.

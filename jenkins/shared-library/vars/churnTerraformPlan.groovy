@@ -7,8 +7,6 @@ def call(Map config = [:]) {
             -var="aws_region=${config.awsRegion}" \
             -var="eks_cluster_name=${config.eksClusterName}" \
             -var="app_name=${config.appName}" \
-            -var="image=${config.imageName}" \
-            -var="deployment_strategy=${config.deploymentStrategy}" \
             -var="eks_version=${config.eksVersion}" \
             -var='node_instance_types=["${config.nodeInstanceType}"]' \
             -out=../../reports/tfplan-${config.environment}.out
