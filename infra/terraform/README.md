@@ -1,7 +1,12 @@
 # Terraform With Jenkins And AWS EKS
 
-This folder creates Kubernetes resources on an existing AWS EKS cluster:
+This folder creates a small AWS EKS environment and deploys the app to it:
 
+- VPC
+- Internet gateway
+- Two public subnets
+- EKS control plane
+- EKS managed node group
 - Namespace: `churn-<environment>`
 - Deployment: `churn-app`
 - Service: `churn-app`
@@ -14,11 +19,21 @@ Required Jenkins parameters:
 - `AWS_REGION`
 - `EKS_CLUSTER_NAME`
 - `AWS_CREDENTIAL_ID`
+- `EKS_VERSION`
+- `EKS_NODE_INSTANCE_TYPE`
 
-The AWS identity used by Jenkins must be allowed to call:
+The AWS identity used by Jenkins must be allowed to manage:
 
-- `eks:DescribeCluster`
-- Kubernetes API operations inside the EKS cluster
+- VPC, subnet, route table, and internet gateway resources
+- EKS clusters and managed node groups
+- IAM roles and policy attachments used by EKS
+- EC2 instances created by the managed node group
 
-The EKS cluster must already exist. This Terraform config deploys the app to the
-cluster; it does not create the EKS cluster itself.
+For a class assignment, a temporary admin-like IAM policy is simplest. For real
+work, scope the permissions more tightly.
+
+Remember to destroy the cluster when done to avoid AWS charges:
+
+```bash
+terraform -chdir=infra/terraform destroy
+```

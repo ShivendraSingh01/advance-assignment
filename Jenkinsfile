@@ -22,8 +22,10 @@ pipeline {
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push Docker image to registry')
         string(name: 'DOCKER_IMAGE', defaultValue: 'shivam1999/churn-app', description: 'Docker image repository')
         string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS region for the EKS cluster')
-        string(name: 'EKS_CLUSTER_NAME', defaultValue: 'advance-assignment-eks', description: 'Existing AWS EKS cluster name')
+        string(name: 'EKS_CLUSTER_NAME', defaultValue: 'advance-assignment-eks', description: 'AWS EKS cluster name to create/manage')
         string(name: 'AWS_CREDENTIAL_ID', defaultValue: 'aws-jenkins-credentials', description: 'Jenkins username/password credential for AWS access key and secret')
+        string(name: 'EKS_VERSION', defaultValue: '1.30', description: 'EKS Kubernetes version')
+        string(name: 'EKS_NODE_INSTANCE_TYPE', defaultValue: 't3.small', description: 'EKS worker node instance type')
         string(name: 'NEXUS_REPO_URL', defaultValue: 'http://65.1.87.174:8081/repository/churn-app/', description: 'Optional Nexus upload URL')
         string(name: 'NEXUS_CREDENTIAL_ID', defaultValue: 'nexus-credentials', description: 'Optional Nexus username/password credential ID')
         string(name: 'SONAR_PROJECT_KEY', defaultValue: 'ShivendraSingh01_advance-assignment', description: 'SonarQube project key')
@@ -249,6 +251,8 @@ pipeline {
                             -var="app_name=${APP_NAME}" \
                             -var="image=${IMAGE_NAME}" \
                             -var="deployment_strategy=${DEPLOY_STRATEGY}" \
+                            -var="eks_version=${EKS_VERSION}" \
+                            -var='node_instance_types=["'${EKS_NODE_INSTANCE_TYPE}'"]' \
                             -out=../../reports/tfplan-${ENVIRONMENT}.out
                     '''
                 }
@@ -278,6 +282,8 @@ pipeline {
                             -var="app_name=${APP_NAME}" \
                             -var="image=${IMAGE_NAME}" \
                             -var="deployment_strategy=${DEPLOY_STRATEGY}" \
+                            -var="eks_version=${EKS_VERSION}" \
+                            -var='node_instance_types=["'${EKS_NODE_INSTANCE_TYPE}'"]' \
                             -out=../../reports/tfplan-${ENVIRONMENT}.out
 
                         terraform -chdir=infra/terraform apply -input=false -auto-approve ../../reports/tfplan-${ENVIRONMENT}.out

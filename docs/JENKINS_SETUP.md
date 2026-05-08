@@ -140,8 +140,10 @@ Terraform. It creates:
 Set these Jenkins parameters:
 
 - `AWS_REGION`: AWS region of the EKS cluster, for example `ap-south-1`.
-- `EKS_CLUSTER_NAME`: existing EKS cluster name.
+- `EKS_CLUSTER_NAME`: EKS cluster name to create and manage.
 - `AWS_CREDENTIAL_ID`: Jenkins credential ID, default `aws-jenkins-credentials`.
+- `EKS_VERSION`: EKS Kubernetes version.
+- `EKS_NODE_INSTANCE_TYPE`: worker node instance type, default `t3.small`.
 - `DEPLOY_STRATEGY`: stored as a Kubernetes label for traceability.
 
 Use `RUN_TERRAFORM_PLAN=true` to only run:
@@ -157,8 +159,18 @@ terraform plan
 terraform apply
 ```
 
-The AWS IAM user or role must have `eks:DescribeCluster` access and Kubernetes
-permissions inside the EKS cluster.
+Terraform creates the EKS cluster, node group, VPC, subnets, IAM roles, and the
+Kubernetes app resources. For an assignment, the simplest AWS setup is to use a
+temporary IAM user with broad permissions, then delete it after the assignment.
+
+At minimum, the Jenkins AWS identity needs permissions across:
+
+- EKS cluster and node group management
+- EC2 VPC, subnet, route table, internet gateway, and security group operations
+- IAM role creation and policy attachment for EKS
+- STS caller identity access
+
+Remember to destroy the EKS environment after testing to avoid AWS charges.
 
 ## Local checks
 
